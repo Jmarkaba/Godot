@@ -1,3 +1,10 @@
+# Bot Credentials and Private Info
+auth.json
+info.json
+
+# Notes and Ideas
+*.txt
+
 # Logs
 logs
 *.log
