@@ -4,7 +4,6 @@
  */
 // Constants and globals
 const INFO_PATH = './info.json';
-
 var info; // reading and writing in real time
 var generalChannel; // references 'general' channel on init
 var notHereRole; // references 'Not Here' role on init
@@ -12,13 +11,18 @@ var server;
 
 // Requirements for Discord bot
 const Discord = require('discord.js');
-const auth = require('./auth.json');
+// if not using heroku uncomment the line below 
+// and replace "bot.login(TOKEN);" with "bot.login(auth.token);""
+//const auth = require('./auth.json'); 
 
 // Datetime configuration and scheduling
 const $D = require('./date.js');
 const schedule = require('node-schedule');
-const glitchup = require('glitchup');
-glitchup();
+
+// To keep the bot running on glitch
+// uncomment the two lines below if using glitch
+//const glitchup = require('glitchup');
+//glitchup(); // posts a GET request every ~4 minutes
 
 // For storing the meeting and resource objects
 const fs = require('fs');
@@ -50,7 +54,7 @@ bot.on('message', message => {
         // args will now act as a stack of the commands and data ouputted
         // from the message so we can shift() each command one at a time
         // and then just pass the array (args)
-        let command = args.shift() // removes last element (first in the message)
+        let command = args.shift() // removes first element in the message
         
         switch (command) {
             case 'test':
@@ -70,7 +74,7 @@ bot.on('message', message => {
     saveInfo(); //to make sure the info is stored correctly
 });
 // initialize client bot
-bot.login(auth.token);
+bot.login(TOKEN);
 
 
 
@@ -235,7 +239,7 @@ function resetAbsences(guild) {
     guild.members.forEach((mem) => {
         mem.addRole(notHereRole).catch(e => {});
         arr.push(mem.id);
-    });
+    }); //adds every memeber back to the absent list
     info.meetings['absent_members'] = arr;
 }
 function removeAbsence(message, id) {
@@ -258,7 +262,7 @@ function nextMeetingString(meeting) {
 }
 function briefMeetingString(meeting) {
     let time = $D.parse(meeting.start);
-    return ["On", time.toString('MMMM dS, yyyy'), "at", meeting.location, '.'].join(" ");
+    return ["On", time.toString('MMMM dS, yyyy'), "at", meeting.location].join(" ");
 }
 function compareMeetings(a, b) {
     return ($D.parse(a.start) < $D.parse(b.start)) ? -1 : 1;
@@ -311,7 +315,9 @@ function handleResource(args, message) {
             break;
     }
 }
-function resourceToString() {}
+function resourceToString(resource) {
+
+}
 /*
  * Universal functions
 */
