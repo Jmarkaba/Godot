@@ -1,14 +1,14 @@
 {
-    "name": "Thoth",
-    "version": "1.0.0",
-    "description": "A bot to manage meetings and resource in a Discord server.",
-    "main": "thoth.js",
-    "author": "Jah Markabawi",
-    "dependencies": {
-      "discord.js": "^11.4.2",
-      "node-schedule": "^1.3.2"
-    },
-    "scripts": {
-      "start": "node thoth.js"
-    }
+  "name": "Thoth",
+  "version": "1.0.0",
+  "description": "A bot to manage meetings and resource in a Discord server.",
+  "main": "thoth.js",
+  "author": "Jah Markabawi",
+  "dependencies": {
+    "discord.js": "^11.4.2",
+    "node-schedule": "^1.3.2"
+  },
+  "scripts": {
+    "start": "node thoth.js"
   }
+}
