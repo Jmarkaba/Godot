@@ -7,7 +7,7 @@ const INFO_PATH = './info.json';
 
 var info; // reading and writing in real time
 var generalChannel; // references 'general' channel on init
-var notHereRole; // hireferences 'Not Here' role on init
+var notHereRole; // references 'Not Here' role on init
 var server;
 
 // Requirements for Discord bot
@@ -16,7 +16,9 @@ const auth = require('./auth.json');
 
 // Datetime configuration and scheduling
 const $D = require('./date.js');
-const schedule = require('node-schedule')
+const schedule = require('node-schedule');
+const glitchup = require('glitchup');
+glitchup();
 
 // For storing the meeting and resource objects
 const fs = require('fs');
@@ -28,7 +30,7 @@ bot.on('ready', function (evt) {
     bot.setMaxListeners(30);
     console.log(schedule.scheduledJobs);
     // @TODO: Remove hard coding of channel and role names
-    generalChannel = bot.channels.find(el => el.name === 'testing');
+    generalChannel = bot.channels.find(el => el.name === 'general');
     server = bot.guilds.first();
     notHereRole = server.roles.find(r => r.name === 'Not Here');
     // Load the resource and meeting info
@@ -45,23 +47,21 @@ bot.on('message', message => {
             return el !== '';
         });
 
-        // reverse the order of the array in place
-        args.reverse(); 
-
-        // args will now be a stack of the commands and data ouputted
-        // from the message so we can pop each command one at a time
+        // args will now act as a stack of the commands and data ouputted
+        // from the message so we can shift() each command one at a time
         // and then just pass the array (args)
-        let command = args.pop() // removes last element (first in the message)
+        let command = args.shift() // removes last element (first in the message)
         
         switch (command) {
             case 'test':
-                message.channel.sendCode("1213kjfl");
+                message.channel.send("There are "+ Object.keys(schedule.scheduledJobs).length + " jobs pending.").catch(e => {});
                 break;
             case 'meeting':
                 handleMeeting(args, message);
                 break;
             case 'resource':
                 handleResource(args, message);
+                break;
             default:
                 message.channel.send('"' + command + '"' + ' is not a valid command.');
                 break;
@@ -90,7 +90,7 @@ bot.login(auth.token);
     // as typeof 'string'
 */
 function handleMeeting(args, message) {
-    let command = args.pop();
+    let command = args.shift();
     switch (command) {
 
         // Adding a new meeting
@@ -116,6 +116,7 @@ function handleMeeting(args, message) {
                         'password': _data[3]
                     };
                     info.meetings['meeting_list'].push(meeting);
+                    info.meetings.meeting_list.sort(compareMeetings);
                     // re-adjust the start value (changed by the add function for meeting.end)
                     start.add({hours: '-'+_data[2]});
 
@@ -128,7 +129,7 @@ function handleMeeting(args, message) {
                     message.channel.send("A meeting has been added on " + meeting.start);
                 } else message.channel.send('"'+_data[0]+'" could not be recognized as a valid date and time.'); 
             } else {
-                outp = _data.length < 4 ? 'Not enough provided ' : 'Too many ';
+                let outp = _data.length < 4 ? 'Not enough provided ' : 'Too many ';
                 outp += 'arguments for command "' + command + '".'
                 message.channel.send(outp);
             }
@@ -138,7 +139,7 @@ function handleMeeting(args, message) {
         case 'signin':
             if(!info.meetings.current) message.channel.send("There is no meeting to sign into.");
             // checks that the password is valid
-            if(args.pop() === info.meetings.current) {
+            if(args.shift() === info.meetings.current) {
                 message.delete().catch(e => {});
                 let userid = message.author.id;
                 let name = removeAbsence(message, userid);
@@ -149,7 +150,7 @@ function handleMeeting(args, message) {
         
         //Calls the toString of the next meeting
         case 'next':
-            let nextM = info.meetings.meeting_list[info.meetings.meeting_list.length-1];
+            let nextM = info.meetings.meeting_list[0];
             if(nextM) message.channel.send(nextMeetingString(nextM));
             else message.channel.send("There is no scheduled meeting coming up.");
             break;
@@ -173,7 +174,7 @@ function handleMeeting(args, message) {
             // checks permissions, breaks if false
             if(!isAuthorized(message)) break;
 
-            let cancelled = info.meetings['meeting_list'].pop();
+            let cancelled = info.meetings['meeting_list'].shift();
             if(cancelled) {
                 console.log("Cancelling");
                 console.log(schedule.scheduledJobs);
@@ -203,7 +204,7 @@ function handleMeeting(args, message) {
 function startMeetingJob() {
     resetAbsences(server);
     // removes the top meeting of the sorted meeting list
-    let m = info.meetings.meeting_list.pop();
+    let m = info.meetings.meeting_list.shift();
     // sets the current password
     info.meetings.current = m.password;
     
@@ -259,7 +260,9 @@ function briefMeetingString(meeting) {
     let time = $D.parse(meeting.start);
     return ["On", time.toString('MMMM dS, yyyy'), "at", meeting.location, '.'].join(" ");
 }
-
+function compareMeetings(a, b) {
+    return ($D.parse(a.start) < $D.parse(b.start)) ? -1 : 1;
+}
 
 /*
  * Meeting related functions
@@ -275,7 +278,7 @@ function briefMeetingString(meeting) {
     // as typeof 'string'
 */
 function handleResource(args, message) {
-    let command = args.pop();
+    let command = args.shift();
     switch(command) {
         case 'add':
 
@@ -291,14 +294,14 @@ function handleResource(args, message) {
             }
             break;
         case 'remove':
-            let del_id = args.pop()
+            let del_id = args.shift()
             info['resources'] = info.resources.filter(r => {
                 return r.id !== del_id;
             });
             message.channel.send('Removed resource named "' + del_id + '" if one existed');
             break;
         case 'fetch':
-            let fet_id = args.pop();
+            let fet_id = args.shift();
             let resource = info.resources.find(r => r.id === fet_id);
             if(resource) {
                 message.channel.send(resourceToString(resource));
@@ -308,13 +311,12 @@ function handleResource(args, message) {
             break;
     }
 }
-
+function resourceToString() {}
 /*
  * Universal functions
 */
 function parseDashes(args) {
     // recreate the string to parse with dashes instead
-    args.reverse();
     let s = args.join(" ");
     let _data = s.split('-').map((str) => str.trim());
     _data.shift();
