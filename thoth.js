@@ -25,7 +25,8 @@ const fs = require('fs');
 // Initialize Discord bot
 const bot = new Discord.Client();
 bot.on('ready', function (evt) {
-    bot.setMaxListeners(25);
+    bot.setMaxListeners(30);
+    console.log(schedule.scheduledJobs);
     // @TODO: Remove hard coding of channel and role names
     generalChannel = bot.channels.find(el => el.name === 'testing');
     server = bot.guilds.first();
@@ -97,7 +98,7 @@ function handleMeeting(args, message) {
         case 'add':
             message.delete().catch(e => {});
             // checks permissions, breaks if false
-            checkAuthorization(message.author);
+            if(!isAuthorized(message)) break;
 
             // expecting _data to be length 4 and of the form
             // [startTime] [location] [duration: hours] [password]
@@ -108,8 +109,8 @@ function handleMeeting(args, message) {
                 // check that it was parsed correctly
                 if(start) {
                     let meeting = {
-                        'start': JSON.stringify(start),
-                        'end': JSON.stringify(start.add({hours: _data[2]})),
+                        'start': start.toString('F'),
+                        'end': start.add({hours: _data[2]}).toString('F'),
                         'location': _data[1],
                         'duration': _data[2],
                         'password': _data[3]
@@ -122,7 +123,7 @@ function handleMeeting(args, message) {
                     // see the startMeetingJob() function below for details
                     // meeting.start is the name of the job so that it can be cancelled
                     // if necessary
-                    schedule.scheduleJob(meeting.start, start, startMeetingJob());
+                    schedule.scheduleJob(meeting.start, start, () => startMeetingJob());
                     // notify the user
                     message.channel.send("A meeting has been added on " + meeting.start);
                 } else message.channel.send('"'+_data[0]+'" could not be recognized as a valid date and time.'); 
@@ -140,43 +141,51 @@ function handleMeeting(args, message) {
             if(args.pop() === info.meetings.current) {
                 message.delete().catch(e => {});
                 let userid = message.author.id;
-                removeAbsence(message, userid);
-                message.channel.send(message.author.nickname + " has been signed in.");
+                let name = removeAbsence(message, userid);
+                if(name) message.channel.send(name + " has been signed in.");
+                else message.channel.send("Could not sign in " + message.author);
             } else message.channel.send("Incorrect password or no password provided.");
             break;
         
         //Calls the toString of the next meeting
         case 'next':
-            let next = info.meetings.meeting_list.pop();
-            message.channel.send(nextMeetingString(next));
+            let nextM = info.meetings.meeting_list[info.meetings.meeting_list.length-1];
+            if(nextM) message.channel.send(nextMeetingString(nextM));
+            else message.channel.send("There is no scheduled meeting coming up.");
             break;
         
         // Same as signin but to excuse someone via mentioning
         // Limited by role
         case 'excuse':
             // checks permissions, breaks if false
-            checkAuthorization(message.author);
+            if(!isAuthorized(message)) break;
 
-            let excused = args.pop()
-            let excusedId = excused.substring(3, excused.length);
-            let name = removeAbsence(message, excusedId);
-            if(name) message.channel.send(name + " was excused from the current meeting.");
-            else message.channel.send("Could not excuse " + excused + " from the meeting.");
+            message.mentions.users.forEach(user => {
+                let name = removeAbsence(message, user.id)
+                if(name) message.channel.send(name + " was excused from the current meeting.");
+                else message.channel.send("Could not excuse " + user + " from the meeting.");
+            });
             break;
 
         // Remove the next scheduled meeting
         // Limited by role
         case 'cancel':
             // checks permissions, breaks if false
-            checkAuthorization(message.author);
+            if(!isAuthorized(message)) break;
 
-            info.meetings['meeting_list'].pop();
-            message.channel.send("The next meeting has been deleted. Type 'meeting list' to see all upcoming meetings.");
+            let cancelled = info.meetings['meeting_list'].pop();
+            if(cancelled) {
+                console.log("Cancelling");
+                console.log(schedule.scheduledJobs);
+                try { schedule.scheduledJobs[cancelled.start].cancel(); } catch(e) {};
+                console.log(schedule.scheduledJobs);
+                message.channel.send("The next meeting has been deleted. Type 'meeting list' to see all upcoming meetings.");
+            } else message.channel.send("There are no meetings to delete.");
             break;
 
         // Lists all of the pending meetings
         case 'list':
-            let list = "";
+            let list = "Upcoming meetings:\n";
             info.meetings.meeting_list.forEach((m) => {
                 list += briefMeetingString(m) +"\n";
             });
@@ -211,7 +220,7 @@ function startMeetingJob() {
     // Job to clean up at the end of a meeting
     schedule.scheduleJob($D.parse(m.end), () => {
         // remove the 'Not Here' role from each member
-        server.members.forEach((mem) => mem.removeRole(notHereRole).catch(console.error));
+        server.members.forEach((mem) => mem.removeRole(notHereRole).catch(e => {}));
         info.meetings['absent_members'] = [];
         info.meetings.current = null;
         // this is a different job that changes the info
@@ -223,7 +232,7 @@ function startMeetingJob() {
 function resetAbsences(guild) {
     let arr = [];
     guild.members.forEach((mem) => {
-        mem.addRole(notHereRole).catch(console.error);
+        mem.addRole(notHereRole).catch(e => {});
         arr.push(mem.id);
     });
     info.meetings['absent_members'] = arr;
@@ -232,24 +241,23 @@ function removeAbsence(message, id) {
     info.meetings['absent_members'] = info.meetings.absent_members.filter((value) => {
         return value !== id;
     });
-    let user = message.guild.members.find(id);
+    let user = message.guild.members.find(mem => mem.id === id);
     if(user) {
-        user.removeRole(notHereRole).catch(console.error);
-        return user.nickname;
+        user.removeRole(notHereRole).catch(e => {});
+        return user.nickname ? user.nickname : user.user.username;
     } else return null;
 }
 // These are the toString methods for our 
 // custom meeting objects
 function nextMeetingString(meeting) {
     let time = $D.parse(meeting.start);
-    return ["There will be a meeting on",time.toString('dddd'),time.toString('MMM'),
-    time.toString('dd')+time.toString('S'),"at",time.toString('t')+".", "The meeting will take place at",
-    meeting.location, ".", "It will be",meeting.duration,
+    return ["There will be a meeting on",time.toString('dddd, MMM dS'),"at",time.toString('t')+".",
+    "The meeting will take place at", meeting.location, ".", "It will be",meeting.duration,
     "hours long. Try not to be late!"].join(" ");
 }
 function briefMeetingString(meeting) {
     let time = $D.parse(meeting.start);
-    return ["Time:", time.toString('d')+",", "Place:", meeting.location].join(" ");
+    return ["On", time.toString('MMMM dS, yyyy'), "at", meeting.location, '.'].join(" ");
 }
 
 
@@ -317,17 +325,12 @@ function saveInfo() {
     fs.writeFile(INFO_PATH, newData, err => { if(err) console.log(err); });
 }
 // For permission checks
-function isAuthorized(member) {
+function isAuthorized(message) {
     const AUTHORIZED = ['Director', 'Project Heads'];
-    member.roles.forEach(role => {
-        if(AUTHORIZED.includes(role.name)) return true;
-    });
-    return false;
-}
-// Use ONLY when in a switch-case that should break
-function checkAuthorization(member) {
-    if(!isAuthorized(message.author)) {
-        message.channel.send("You do not have permission to use that command.")
-        break;
+    if(message.member.roles.some(r => AUTHORIZED.includes(r.name)))
+        return true;
+    else {
+        message.channel.send("You do not have permission to use that command.");
+        return false;
     }
 }
