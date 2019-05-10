@@ -12,7 +12,7 @@ var server;
 // Requirements for Discord bot
 const Discord = require('discord.js');
 // if not using heroku uncomment the line below 
-// and replace "bot.login(TOKEN);" with "bot.login(auth.token);""
+// and replace "bot.login(process.env.TOKEN);" with "bot.login(auth.token);""
 //const auth = require('./auth.json'); 
 
 // Datetime configuration and scheduling
@@ -74,7 +74,7 @@ bot.on('message', message => {
     saveInfo(); //to make sure the info is stored correctly
 });
 // initialize client bot
-bot.login(TOKEN);
+bot.login(process.env.TOKEN);
 
 
 
