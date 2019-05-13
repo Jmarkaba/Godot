@@ -50,7 +50,7 @@ function handleResource(args, message, bot) {
 
         case 'list':
             let groupid = args.join(" ").toLowerCase();
-            if(groupid === 'help') {
+            if(!groupid || groupid === 'help') {
                 message.channel.send(getUniqueGroups());
                 break;
             }
