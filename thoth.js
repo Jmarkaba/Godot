@@ -50,7 +50,7 @@ bot.on('message', async message => {
                 meetingHandle(args, message, bot.guilds.first());
                 break;
             case 'resource':
-                resourceHandle(args, message);
+                resourceHandle(args, message, bot);
                 break;
             case 'help':
                 message.channel.send(helpString());

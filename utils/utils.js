@@ -1,6 +1,13 @@
 /*
  * Universal functions
 */
+function titleCase(str) {
+    return str
+    .toLowerCase()
+    .split(' ')
+    .map(word => word.replace(word[0], word[0].toUpperCase()))
+    .join(' ');
+}
 function parseDashes(args) {
     // recreate the string to parse with dashes instead
     let s = args.join(" ");
@@ -19,5 +26,6 @@ function isAuthorized(message) {
     }
 }
 
+module.exports.titleCase = titleCase;
 module.exports.parseDashes = parseDashes;
 module.exports.isAuthorized = isAuthorized;

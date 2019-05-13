@@ -2,60 +2,69 @@
 // Model functions
 var Resource = require('../schemas/resource.js');
 // Misc
+const Discord = require('discord.js');
 const utils = require('../utils/utils.js');
 
-// @REIMPLEMENT
-function handleResource(args, message) {
+function handleResource(args, message, bot) {
     let command = args.shift();
     switch(command) {
-        case 'add':
 
+        case 'add':
             // expecting _data to be length 4 and of the form
-            // [group] [id] [description] [link]
+            // [group] [name] [description] [link]
             let _data = utils.parseDashes(args);
             if(_data.length === 4) {
                 let resource = {
                     "group": _data[0].toLowerCase(),
-                    "id": _data[1].toLowerCase(),
+                    "name": _data[1].toLowerCase(),
                     "description": _data[2],
                     "link": _data[3]
                 };
-                console.log(resource);
-                //Resource.create(resource, err => {if(err) console.log(err);});
-                message.channel.send("Resource successfully added.")
+                Resource.create(resource, err => {
+                    if(err) message.channel.send("Resource successfully added.");
+                    else message.channel.send("There was an error adding the resource.");
+                });
             } else message.channel.send((_data.length < 4 ? "Too few" : "Too many") + " arguments provided for resource.");
             break;
+
         case 'remove':
             let del_id = args.join(" ").toLowerCase();
-            Resource.remove({id: del_id}, err => {if(err) console.log(err);});
-            message.channel.send('Removed resource named "' + del_id + '" if one existed');
+            Resource.deleteOne({name: del_id}, err => { 
+                if(err) message.channel.send('Could not delete resource named "' + del_id + '"');
+                else message.channel.send('Removed resource ' + del_id);
+            });
             break;
+
         case 'fetch':
             let fet_id = args.join(" ").toLowerCase();
-            let resource = fetchResource(fet_id);
-            if(resource) message.channel.send(resourceToString(resource));
-            else message.channel.send('Could not find resource: "' + fet_id + '"')
+            Resource.findOne({name: fet_id}, function (err,doc) {
+                if(!err && doc) message.channel.send(doc.fullResource);
+                else message.channel.send('Could not find resource: "' + fet_id + '"');
+            });
             break;
+
         case 'list':
-            let groupid = args.join(" ").toLowerCase();;
-            if(info.resources.find(res => res.group === groupid)) {
-                let embed = fetchResourceGroupEmbed(groupid);
-                message.channel.send({embed});
-            } else message.channel.send("No group provided or no such group exists.");
+            let groupid = args.join(" ").toLowerCase();
+            let embed = fetchResourceGroupEmbed(groupid, bot);
+            Resource.find({group: groupid}, function (err, docs) {
+                if(!err && docs.length !== 0) {
+                    docs.forEach(doc => embed.addField(utils.titleCase(doc.name), doc.fullResource));
+                    message.channel.send({embed});
+                } else message.channel.send("No such group found!")
+            });
+            break;
+
         default:
+            message.channel.send('"' + command + '"' + ' is not recognized as a meeting command.');
             break;
     }
 }
-function fetchResourceGroupEmbed(group) {
+function fetchResourceGroupEmbed(group, bot) {
     var embed = new Discord.RichEmbed()
-        .setTitle("Resource group: " + group)
+        .setTitle("Resource group: " + utils.titleCase(group))
         .setAuthor(bot.user.username, bot.user.avatarURL)
         .setTimestamp()
-        .setColor(FF8C00);
-    info.resources.forEach(res => {
-        if(res.group === group)
-            embed.addField(res.id, res.fullResource);
-    });
+        .setColor(0xFF8C00);
     return embed;
 }
 

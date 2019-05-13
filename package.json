@@ -1,7 +1,7 @@
 {
   "name": "thoth",
-  "version": "1.0.1",
-  "description": "A bot to manage meetings and resource in a Discord server.",
+  "version": "1.0.2",
+  "description": "A bot to manage meetings and resources in a Discord server.",
   "main": "thoth.js",
   "author": "Jah Markabawi",
   "license": "MIT",

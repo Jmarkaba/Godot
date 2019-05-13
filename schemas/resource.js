@@ -1,18 +1,15 @@
 const mongoose = require("mongoose");
 
 const resourceSchema = mongoose.Schema({
-    id: String,
+    name: String,
     group: String,
     description: String,
     link: String
 });
 
 class ResourceClass {
-    get getName() {
-        return this.id;
-    }
     get fullResource() {
-        return this.description,": ","(",this.link,")";
+        return [this.description + ":",this.link].join(" ");
     }
 }
 resourceSchema.loadClass(ResourceClass);
