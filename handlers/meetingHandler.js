@@ -12,9 +12,9 @@ var currentPassword = null;
 const utils = require('../utils/utils.js');
 
 
-function handleMeeting(args, message, g) {
-    guild = g;
-
+function handleMeeting(args, message, gld) {
+    guild = gld;
+    
     let command = args.shift();
     switch (command) {
         case 'pending':
@@ -22,12 +22,11 @@ function handleMeeting(args, message, g) {
             break;
         // Adding a new meeting
         case 'add':
-            message.delete().catch(O_o => {});
             // checks permissions, breaks if false
             if(!utils.isAuthorized(message)) break;
 
             // expecting _data to be length 4 and of the form
-            // [startTime] [location] [duration: hours] [password]
+            // [startTime] [location] [duration: hoursString] [password]
             let _data = utils.parseDashes(args);
             if(_data.length === 4) {
                 // start is a js Date object
@@ -42,19 +41,16 @@ function handleMeeting(args, message, g) {
                         'duration': _data[2],
                         'password': _data[3] 
                     };
-                    Meeting.create(meeting, err => {if(err) console.log(err);});
-                    // schedule function for the date of the meeting
-                    // meeting.start is used as the name of the job so that it can be cancelled if necessary
-                    schedule.scheduleJob(meeting.start.toString(), start, () => startMeetingJob(guild));
-                    Job.create({date: meeting.start, name: meeting.start.toString()}, err => {if(err) console.log(err);});
-                    message.channel.send("A meeting has been added on " + meeting.start.toString('F'));
+                    Meeting.create(meeting, err => {
+                        if(err) message.channel.send("There was an error with your request.")
+                        else createFullMeeting(message, meeting);
+                    });
                 } else message.channel.send('"'+_data[0]+'" could not be recognized as a valid date and time.'); 
             } else message.channel.send((_data.length < 4 ? "Too few" : "Too many") + " arguments provided for meeting.");
             break;
 
         // Signing into a meeting
         case 'signin':
-            message.delete().catch(O_o => {});
             if(!currentPassword) message.channel.send("There is no meeting to sign into.");
             // checks that the password is valid
             if(args.shift() === currentPassword) {
@@ -127,10 +123,8 @@ function handleMeeting(args, message, g) {
 }
 function resetAbsences(guild) {
     let notHereRole = guild.roles.find(r => r.name === 'Not Here'); 
-    let arr = [];
     guild.members.forEach((mem) => {
         mem.addRole(notHereRole).catch(O_o => {});
-        arr.push(mem.id);
     }); //adds every memeber back to the absent list
 }
 function removeAbsence(message, id) {
@@ -141,12 +135,26 @@ function removeAbsence(message, id) {
         return user.nickname || user.user.username;
     } else return null;
 }
+function createFullMeeting(message, meeting) {
+    // schedule function for the date of the meeting
+    // meeting.start is used as the name of the job so that it can be cancelled if necessary
+    schedule.scheduleJob(meeting.start.toString(), start, () => startMeetingJob(guild));
+    Job.create({date: meeting.start, name: meeting.start.toString()}, err => {if(err) console.log(err);});
+    message.channel.send("A meeting has been added on " + meeting.start.toString('F') + ".");
+    _announceMeeting(message, meeting);
+}
+function _announceMeeting(message, meeting) {
+    let announcement = message.guild.channels.find(el => el.name === 'announcements');
+    Meeting.findOne({start: meeting.start}, function(err,doc) {
+        announcement.send("@everyone " + doc.nextString);
+    });
+}
 function startMeetingJob(guild) {
     resetAbsences(guild);
     let now = new Date();
     Meeting.findOneAndRemove({start: {$lte: now}}, function (err,doc) {
         if(!err) {
-            Job.deleteOne({date: doc.start}, err => {});
+            Job.deleteOne({date: doc.start}, e => {});
             currentPassword = doc.password;
             console.log(doc);
 

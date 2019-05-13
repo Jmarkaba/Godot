@@ -39,7 +39,7 @@ bot.on('message', async message => {
         // preprocess args
         let args = message.content.substring(2).split(' ');
         args = args.filter(el => el !== '');
-
+        message.delete().catch(O_o => {});
         // args will now act as a stack of the commands and data ouput
         // from the message so we can shift() each command one at a time
         // and then just pass the array (args)
@@ -56,7 +56,7 @@ bot.on('message', async message => {
                 message.channel.send(helpString());
                 break;
             default:
-                message.channel.send('"' + command + '"' + ' is not a valid command. Type "//help" to see a full list of commands.');
+                message.channel.send('"' + command + '"' + ' is not a valid command. Type `//help` to see a full list of commands.');
                 break;
         }
     }
@@ -68,7 +68,7 @@ bot.login(process.env.TOKEN || auth.token);
 
 function helpString() {
     let help = 
-    '\n```Here is a list of all possible commands:' +
+    '```Here is a list of all possible commands:' +
     '\nmeeting [subcommand]' +
     '\n  | add -[time]-[place]-[duration]-[password]' +
     '\n  | next' +
@@ -77,9 +77,9 @@ function helpString() {
     '\n  | excuse @Mentionable(s)...' +
     '\n  | cancel' +
     '\nresource [subcommand]' +
-    '\n  | add -[group]-[id]-[description]-[link]' +
-    '\n  | fetch -[id]' +
-    '\n  | list -[group]' +
+    '\n  | add -[group]-[name]-[description]-[link]' +
+    '\n  | fetch [name]' +
+    '\n  | list [group]' +
     '\n  | remove```';
     return help;
 }

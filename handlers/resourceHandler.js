@@ -22,8 +22,8 @@ function handleResource(args, message, bot) {
                     "link": _data[3]
                 };
                 Resource.create(resource, err => {
-                    if(err) message.channel.send("Resource successfully added.");
-                    else message.channel.send("There was an error adding the resource.");
+                    if(err) message.channel.send("There was an error adding the resource.");
+                    else message.channel.send("Resource successfully added.");
                 });
             } else message.channel.send((_data.length < 4 ? "Too few" : "Too many") + " arguments provided for resource.");
             break;
@@ -47,12 +47,16 @@ function handleResource(args, message, bot) {
 
         case 'list':
             let groupid = args.join(" ").toLowerCase();
+            if(groupid === 'help') {
+                message.channel.send(getUniqueGroups());
+                break;
+            }
             let embed = fetchResourceGroupEmbed(groupid, bot);
             Resource.find({group: groupid}, function (err, docs) {
                 if(!err && docs.length !== 0) {
                     docs.forEach(doc => embed.addField(utils.titleCase(doc.name), doc.fullResource));
                     message.channel.send({embed});
-                } else message.channel.send("No such group found!")
+                } else message.channel.send("No such group found. " + getUniqueGroups());
             });
             break;
 
@@ -60,6 +64,13 @@ function handleResource(args, message, bot) {
             message.channel.send('"' + command + '"' + ' is not recognized as a meeting command.');
             break;
     }
+}
+function getUniqueGroups() {
+    let ret = "Here is a list of all possible groups: ";
+    Resource.distinct('group', (err, groups) => {
+        if(!err) ret += groups.join(", ");
+    });
+    return ret;
 }
 function fetchResourceGroupEmbed(group, bot) {
     var embed = new Discord.RichEmbed()
