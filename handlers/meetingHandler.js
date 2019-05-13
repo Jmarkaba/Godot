@@ -105,7 +105,7 @@ function handleMeeting(args, message, gld) {
         // Lists all of the pending meetings
         case 'list':
             Meeting.find({}).sort({start: 1}).exec(function(err,docs) {
-                if (err) console.log(err);//message.channel.send("There was an error while trying to list the meetings.");
+                if (err) message.channel.send("There was an error while trying to list the meetings.");
                 else {
                     let list = "";
                     docs.forEach(m => list += m.briefString +"\n");
