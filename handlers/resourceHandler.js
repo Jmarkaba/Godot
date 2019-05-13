@@ -51,7 +51,9 @@ function handleResource(args, message, bot) {
         case 'list':
             let groupid = args.join(" ").toLowerCase();
             if(!groupid || groupid === 'help') {
-                message.channel.send(getUniqueGroups());
+                Resource.distinct('group', (err, groups) => {
+                    message.channel.send(getUniqueGroups(err, groups));
+                });
                 break;
             }
             let embed = fetchResourceGroupEmbed(groupid, bot);
@@ -79,6 +81,7 @@ function _announceResource(message, resource) {
     });
 }
 function getUniqueGroups(err, groups) {
+    console.log(groups);
     if(err || groups.length === 0) return "There are no resources currently.";
     else {
         let ret = "Here is a list of all possible groups: ";
