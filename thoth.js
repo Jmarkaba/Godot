@@ -8,7 +8,7 @@ const Discord = require('discord.js');
 const schedule = require('node-schedule');
 
 // IF YOU ARE NOT USING HEROKU UNCOMMENT THE LINE BELOW
-const auth = require('./auth.json'); 
+//const auth = require('./auth.json'); 
 
 // Command Handlers
 meetingHandle = require('./handlers/meetingHandler').handler;
