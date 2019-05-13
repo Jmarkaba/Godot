@@ -23,7 +23,10 @@ function handleResource(args, message, bot) {
                 };
                 Resource.create(resource, err => {
                     if(err) message.channel.send("There was an error adding the resource.");
-                    else message.channel.send("Resource successfully added.");
+                    else {
+                        message.channel.send("Resource successfully added.");
+                        _announceResource(message, resource);
+                    }
                 });
             } else message.channel.send((_data.length < 4 ? "Too few" : "Too many") + " arguments provided for resource.");
             break;
@@ -56,7 +59,11 @@ function handleResource(args, message, bot) {
                 if(!err && docs.length !== 0) {
                     docs.forEach(doc => embed.addField(utils.titleCase(doc.name), doc.fullResource));
                     message.channel.send({embed});
-                } else message.channel.send("No such group found. " + getUniqueGroups());
+                } else {
+                    Resource.distinct('group', (err, groups) => {
+                        message.channel.send("No such group found. " + getUniqueGroups(err, groups));
+                    });
+                }
             });
             break;
 
@@ -65,12 +72,19 @@ function handleResource(args, message, bot) {
             break;
     }
 }
-function getUniqueGroups() {
-    let ret = "Here is a list of all possible groups: ";
-    Resource.distinct('group', (err, groups) => {
-        if(!err) ret += groups.join(", ");
+function _announceResource(message, resource) {
+    let announcement = message.guild.channels.find(el => el.name === 'resources');
+    Resource.findOne({name: resource.name}, function(err, doc) {
+        if(!err) announcement.send("@everyone A new resource has been added! " + doc.fullResource);
     });
-    return ret;
+}
+function getUniqueGroups(err, groups) {
+    if(err || groups.length === 0) return "There are no resources currently.";
+    else {
+        let ret = "Here is a list of all possible groups: ";
+        ret += groups.join(", "); 
+        return ret;
+    }
 }
 function fetchResourceGroupEmbed(group, bot) {
     var embed = new Discord.RichEmbed()

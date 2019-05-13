@@ -8,7 +8,7 @@ const Discord = require('discord.js');
 const schedule = require('node-schedule');
 
 // IF YOU ARE NOT USING HEROKU UNCOMMENT THE LINE BELOW
-//const auth = require('./auth.json'); 
+const auth = require('./auth.json'); 
 
 // Command Handlers
 meetingHandle = require('./handlers/meetingHandler').handler;
@@ -34,12 +34,11 @@ bot.on('ready', evt => {
     });
     console.log("Connected!");
 });
-bot.on('message', async message => {
+bot.on('message', message => {
     if (message.content.substring(0, 2) === "//") {
         // preprocess args
         let args = message.content.substring(2).split(' ');
         args = args.filter(el => el !== '');
-        message.delete().catch(O_o => {});
         // args will now act as a stack of the commands and data ouput
         // from the message so we can shift() each command one at a time
         // and then just pass the array (args)
@@ -59,6 +58,7 @@ bot.on('message', async message => {
                 message.channel.send('"' + command + '"' + ' is not a valid command. Type `//help` to see a full list of commands.');
                 break;
         }
+        message.delete().catch(O_o => {});
     }
 });
 // initialize client bot
