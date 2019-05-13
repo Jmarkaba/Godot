@@ -148,5 +148,6 @@ return((r[1].length===0)?r[0]:null);};};$D.parseExact=function(s,fx){return $D.g
 module.exports = {
     parse: Date.parse,
     add: Date.add,
-    toString: Date.toString
+    toString: Date.toString,
+    Date: Date
 }
