@@ -58,7 +58,7 @@ bot.on('message', message => {
                 message.channel.send('"' + command + '"' + ' is not a valid command. Type `//help` to see a full list of commands.');
                 break;
         }
-        message.delete().catch(O_o => {});
+        message.delete(10).catch(O_o => {console.log(O_o)});
     }
 });
 // initialize client bot
