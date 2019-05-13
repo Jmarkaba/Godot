@@ -10,6 +10,7 @@ function handleResource(args, message, bot) {
     switch(command) {
 
         case 'add':
+            if(!utils.isAuthorized(message)) break;
             // expecting _data to be length 4 and of the form
             // [group] [name] [description] [link]
             let _data = utils.parseDashes(args);
@@ -28,6 +29,7 @@ function handleResource(args, message, bot) {
             break;
 
         case 'remove':
+            if(!utils.isAuthorized(message)) break;
             let del_id = args.join(" ").toLowerCase();
             Resource.deleteOne({name: del_id}, err => { 
                 if(err) message.channel.send('Could not delete resource named "' + del_id + '"');
