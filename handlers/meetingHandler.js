@@ -74,6 +74,7 @@ function handleMeeting(args, message, g) {
                     else message.channel.send("There are no upcoming meetings.");
                 }
             });
+            break;
         
         // Same as signin but to excuse someone via mentioning
         case 'excuse':
