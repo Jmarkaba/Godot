@@ -8,13 +8,13 @@ var Meeting = require('../schemas/meeting.js');
 var Job = require('../schemas/job.js');
 // Globals
 var guild;
-var currentPassword = null;
+var currentMeeting = null;
 const utils = require('../utils/utils.js');
 
 
 function handleMeeting(args, message, gld) {
     guild = gld;
-    
+
     let command = args.shift();
     switch (command) {
         case 'pending':
@@ -23,11 +23,11 @@ function handleMeeting(args, message, gld) {
         // Adding a new meeting
         case 'add':
             // checks permissions, breaks if false
-            if(!utils.isAuthorized(message)) break;
+            if(!utils.isAuthorized(message, 'Project Heads')) break;
 
             // expecting _data to be length 4 and of the form
             // [startTime] [location] [duration: hoursString] [password]
-            let _data = utils.parseDashes(args);
+            let _data = utils.parseCustom(args);
             if(_data.length === 4) {
                 // start is a js Date object
                 let start = $D.parse(_data[0])
@@ -41,19 +41,34 @@ function handleMeeting(args, message, gld) {
                         'duration': _data[2],
                         'password': _data[3] 
                     };
-                    Meeting.create(meeting, err => {
-                        if(err) message.channel.send("There was an error with your request.")
-                        else createFullMeeting(message, meeting);
+                    Meeting.create(meeting, (err,doc) => {
+                        if(!err) _createFullMeeting(message, doc);
+                        console.log(doc);
                     });
                 } else message.channel.send('"'+_data[0]+'" could not be recognized as a valid date and time.'); 
             } else message.channel.send((_data.length < 4 ? "Too few" : "Too many") + " arguments provided for meeting.");
             break;
+        
+        // Remove the next scheduled meeting
+        case 'cancel':
+            if(!utils.isAuthorized(message, 'Project Heads')) break;
+            performOnSortedMeetings(message, function(message, docs) {
+                if(docs[0]) {
+                    Meeting.deleteOne({start: docs[0].start}, err => {if(err) console.log(err);});
+                    Job.deleteOne({date: docs[0].start}, err => {if(err) console.log(err);});
+                    try {
+                        schedule.scheduledJobs[docs[0].start.toString()].cancel()
+                    } catch(e) { console.log(e); }
+                    message.channel.send("The next meeting has been deleted. Type 'meeting list' to see all upcoming meetings.");
+                } else message.channel.send("There are no upcoming meetings to delete.");
+            });
+            break;
 
         // Signing into a meeting
         case 'signin':
-            if(!currentPassword) message.channel.send("There is no meeting to sign into.");
+            if(!currentMeeting) message.channel.send("There is no meeting to sign into.");
             // checks that the password is valid
-            if(args.shift() === currentPassword) {
+            if(args.shift() === currentMeeting.password) {
                 let userid = message.author.id;
                 let name = removeAbsence(message, userid);
                 if(name) message.channel.send(name + " has been signed in.");
@@ -61,20 +76,9 @@ function handleMeeting(args, message, gld) {
             } else message.channel.send("Incorrect password or no password provided.");
             break;
         
-        //Calls the toString of the next meeting
-        case 'next':
-            Meeting.find({}).sort({start: 1}).exec(function(err,docs) {
-                if (err) message.channel.send("There was an error while trying to get the next meeting.");
-                else {
-                    if(docs[0]) message.channel.send(docs[0].nextString);
-                    else message.channel.send("There are no upcoming meetings.");
-                }
-            });
-            break;
-        
         // Same as signin but to excuse someone via mentioning
         case 'excuse':
-            if(!utils.isAuthorized(message)) break;
+            if(!utils.isAuthorized(message, 'Project Heads')) break;
 
             message.mentions.users.forEach(user => {
                 let name = removeAbsence(message, user.id)
@@ -82,37 +86,34 @@ function handleMeeting(args, message, gld) {
                 else message.channel.send("Could not excuse " + user + " from the meeting.");
             });
             break;
-
-        // Remove the next scheduled meeting
-        case 'cancel':
-            if(!utils.isAuthorized(message)) break;
-
-            Meeting.find({}).sort({start: 1}).exec(function(err,docs) {
-                if (err) message.channel.send("There was an error while trying to delete the meeting.");
-                else {
-                    if(docs[0]) {
-                        Meeting.deleteOne({start: docs[0].start}, err => {if(err) console.log(err);});
-                        Job.deleteOne({date: docs[0].start}, err => {if(err) console.log(err);});
-                        try {
-                            schedule.scheduledJobs[docs[0].start.toString()].cancel()
-                        } catch(e) { console.log(e); }
-                        message.channel.send("The next meeting has been deleted. Type 'meeting list' to see all upcoming meetings.");
-                    } else message.channel.send("There are no upcoming meetings to delete.");
-                }
+        
+        //Calls the toString of the next meeting
+        case 'next':
+            performOnSortedMeetings(message, function(message, docs) {
+                if(docs[0]) message.channel.send(docs[0].nextString);
+                else message.channel.send("There are no upcoming meetings.");
             });
             break;
 
         // Lists all of the pending meetings
         case 'list':
-            Meeting.find({}).sort({start: 1}).exec(function(err,docs) {
-                if (err) message.channel.send("There was an error while trying to list the meetings.");
-                else {
-                    let list = "";
-                    docs.forEach(m => list += m.briefString +"\n");
-                    if(list !== "") message.channel.send("Upcoming meetings:\n" + list);
-                    else message.channel.send("There are no upcoming meetings.");
-                }
+            performOnSortedMeetings(message, function(message, docs) {
+                let list = "";
+                docs.forEach(m => list += m.briefString +"\n");
+                if(list !== "") message.channel.send("Upcoming meetings:\n" + list);
+                else message.channel.send("There are no upcoming meetings.");
             });
+            break;
+
+        // Add meeting notes
+        case 'note':
+            if(!currentMeeting) message.channel.send("There is no meeting currently being held.");
+            else {
+                if(!utils.isAuthorized(message, 'Project Heads', 'Secretary')) break;
+                let note = args.join(" ");
+                currentMeeting.notes.push(note);
+                message.channel.send("Noted.");
+            }
             break;
 
         // Invalid commands
@@ -123,9 +124,7 @@ function handleMeeting(args, message, gld) {
 }
 function resetAbsences(guild) {
     let notHereRole = guild.roles.find(r => r.name === 'Not Here'); 
-    guild.members.forEach((mem) => {
-        mem.addRole(notHereRole).catch(O_o => {});
-    }); //adds every memeber back to the absent list
+    guild.members.forEach(mem => mem.addRole(notHereRole).catch(O_o => {}));
 }
 function removeAbsence(message, id) {
     let user = message.guild.members.find(mem => mem.id === id);
@@ -135,46 +134,57 @@ function removeAbsence(message, id) {
         return user.nickname || user.user.username;
     } else return null;
 }
-function createFullMeeting(message, meeting) {
+function performOnSortedMeetings(message, func) {
+    Meeting.find({}).sort({start: 1}).exec((err,docs) => {
+        if (err) message.channel.send("There was an error while trying to perform the request.");
+        else func(message, docs);
+    });
+}
+function _createFullMeeting(message, meeting) {
     // schedule function for the date of the meeting
     // meeting.start is used as the name of the job so that it can be cancelled if necessary
-    schedule.scheduleJob(meeting.start.toString(), start, () => startMeetingJob(guild));
-    Job.create({date: meeting.start, name: meeting.start.toString()}, err => {if(err) console.log(err);});
-    message.channel.send("A meeting has been added on " + meeting.start.toString('F') + ".");
-    _announceMeeting(message, meeting);
-}
-function _announceMeeting(message, meeting) {
-    let announcement = message.guild.channels.find(el => el.name === 'announcements');
-    Meeting.findOne({start: meeting.start}, function(err,doc) {
-        announcement.send("@everyone " + doc.nextString);
-    });
+    schedule.scheduleJob(meeting.start.toString(), meeting.start, () => startMeetingJob(guild));
+    Job.create({date: meeting.start, name: meeting.start.toString()}, err => {
+        if(!err) {
+            message.channel.send("A meeting has been added on " + meeting.start.toString('F') + ".");
+            utils.announce(message, 'announcements', meeting);
+        }
+    }); 
 }
 function startMeetingJob(guild) {
     resetAbsences(guild);
     let now = new Date();
-    Meeting.findOneAndRemove({start: {$lte: now}}, function (err,doc) {
+    Meeting.findOneAndDelete({start: {$lte: now}}, (err,doc) => {
         if(!err) {
             Job.deleteOne({date: doc.start}, e => {});
-            currentPassword = doc.password;
-            console.log(doc);
+            currentMeeting = doc;
+            currentMeeting['notes'] = [];
+            console.log(currentMeeting);
 
             // send an alert every 3 minutes (180000 millis)
-            setInterval(() => {
-                let generalChannel = guild.channels.find(el => el.name === 'general');
-                let notHereRole = guild.roles.find(r => r.name === 'Not Here');
-                generalChannel.send(notHereRole.toString() + " there is a meeting right now. Get here as soon as possible and sign in or leave a message explaining why you should be excused.");
-            }, 180000);
+            setInterval(() => _notify(guild), 180000);
             now.setMinutes(now.getMinutes() + 20);
             schedule.scheduleJob(now, () => clearInterval());
-
-            // Job to clean up at the end of a meeting
-            schedule.scheduleJob(m.end, () => {
-                currentPassword = null;
-                let notHereRole = guild.roles.find(r => r.name === 'Not Here');
-                guild.members.forEach((mem) => mem.removeRole(notHereRole).catch(O_o => {}));
-            });
+            schedule.scheduleJob(doc.end, () => _endMeeting(guild));
         }
     });
+}
+function _notify(guild) {
+    let generalChannel = guild.channels.find(el => el.name === 'general');
+    let notHereRole = guild.roles.find(r => r.name === 'Not Here');
+    generalChannel.send(notHereRole.toString() + " there is a meeting right now. Get here as soon as possible and sign in or leave a message explaining why you should be excused.");
+}
+function _endMeeting(guild) {
+    clearInterval();
+    _postMeetingNotes(guild, new Date());
+    let notHereRole = guild.roles.find(r => r.name === 'Not Here');
+    guild.members.forEach(mem => mem.removeRole(notHereRole).catch(O_o => {}));
+    currentMeeting = null;
+}
+function _postMeetingNotes(guild, date) {
+    let final = "Meeting Notes " + date.toString('MMMM dS, yyyy') + ":\n-";
+    final += currentMeeting.notes.join("\n-");
+    utils.announce(guild, 'meeting-notes', final);
 }
 
 // Exports

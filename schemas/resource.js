@@ -11,6 +11,10 @@ class ResourceClass {
     get fullResource() {
         return [this.description + ":",this.link].join(" ");
     }
+    // Convenience method
+    get announceString() {
+        return "@everyone A new resource has been added. " + this.fullResource;
+    }
 }
 resourceSchema.loadClass(ResourceClass);
 

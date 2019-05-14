@@ -1,14 +1,10 @@
 /**
- * @version: 1.0.1
+ * @version: 1.0.3
  * @author: Jah Markabawi
  */
-
 // Requirements for Discord bot
 const Discord = require('discord.js');
 const schedule = require('node-schedule');
-
-// IF YOU ARE NOT USING HEROKU UNCOMMENT THE LINE BELOW
-//const auth = require('./auth.json'); 
 
 // Command Handlers
 meetingHandle = require('./handlers/meetingHandler').handler;
@@ -17,7 +13,7 @@ resourceHandle = require('./handlers/resourceHandler').handler;
 
 // For MongoDB
 // Connection through mongoose is established during bot init process
-const MONGDB_URI = process.env.MONGODB_URI || auth.mongo;
+const MONGDB_URI = process.env.MONGODB_URI || require('./auth.json').mongo;
 const mongoose = require("mongoose");
 mongoose.connect(MONGDB_URI, {autoIndex: false, useNewUrlParser: true}, err => { if(err) console.log(err); });
 var Job = require('./schemas/job.js');
@@ -25,9 +21,9 @@ var Job = require('./schemas/job.js');
 
 // Initialize Discord bot
 const bot = new Discord.Client();
-bot.on('ready', evt => {
-    bot.setMaxListeners(30);
-    Job.find({}, function (err, docs) {
+bot.on('ready', () => {
+    bot.setMaxListeners(100);
+    Job.find({}, (err, docs) => {
         if(!err) docs.forEach(doc => {
             schedule.scheduleJob(doc.name, doc.date, () => startMeetingJob(bot.guilds.first()))
         });
@@ -58,11 +54,11 @@ bot.on('message', message => {
                 message.channel.send('"' + command + '"' + ' is not a valid command. Type `//help` to see a full list of commands.');
                 break;
         }
-        message.delete(10).catch(O_o => {console.log(O_o)});
+        message.delete(30).catch(O_o => {console.log(O_o)});
     }
 });
 // initialize client bot
-bot.login(process.env.TOKEN || auth.token);
+bot.login(process.env.TOKEN || require('./auth.json').token);
 
 
 
@@ -70,16 +66,17 @@ function helpString() {
     let help = 
     '```Here is a list of all possible commands:' +
     '\nmeeting [subcommand]' +
-    '\n  | add -[time]-[place]-[duration]-[password]' +
-    '\n  | next' +
-    '\n  | list' +
-    '\n  | signin -[password]' +
-    '\n  | excuse @Mentionable(s)...' +
-    '\n  | cancel' +
+    '\n | add --[time] --[place] --[duration] --[password]' +
+    '\n | note [note]' +
+    '\n | next' +
+    '\n | list' +
+    '\n | signin [password]' +
+    '\n | excuse @Mentionable(s)...' +
+    '\n | cancel' +
     '\nresource [subcommand]' +
-    '\n  | add -[group]-[name]-[description]-[link]' +
-    '\n  | fetch [name]' +
-    '\n  | list [group]' +
-    '\n  | remove```';
+    '\n | add --[group] --[name] --[description] --[link]' +
+    '\n | fetch [name]' +
+    '\n | list [group]' +
+    '\n | remove [name]```';
     return help;
 }

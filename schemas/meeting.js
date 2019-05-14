@@ -16,6 +16,10 @@ class MeetingClass {
     get briefString() {
         return ["On", this.start.toString('MMMM dS, yyyy'), "at", this.location].join(" ");
     }
+    // Convenience method
+    get announceString() {
+        return "@everyone " + this.nextString;
+    }
 }
 meetingSchema.loadClass(MeetingClass);
 
