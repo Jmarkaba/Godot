@@ -1,14 +1,4 @@
-const bot = require('../godot');
 const Guild = require('../schemas/guild.js'); 
-
-
-function titleCase(str) {
-    return str
-    .toLowerCase()
-    .split(' ')
-    .map(word => word.replace(word[0], word[0].toUpperCase()))
-    .join(' ');
-}
 
 // Parsing functions
 function parseFlags(args, def) {
@@ -28,6 +18,17 @@ function parseMention(string) {
 }
 
 // Format and permission checks
+function checkCount(message, args, c, error) {
+    if(c && !args || args.length < c) {
+        message.reply(error);
+        return false;
+    } else return true;
+}
+function checkFlagCount(message, args, c, error) {
+    let s = args.join(' ');
+    let arr = s.split(/--(\w+)/).filter(el => el);
+    return checkCount(message, arr, 2*c, error);
+}
 async function isAuthorized(message) {
     let authorized = false;
     await Guild.findById(message.guild.id).then((_, guild) => {
@@ -57,8 +58,9 @@ function announce(guild, announcement) {
 }
 
 // Exports
-module.exports.titleCase = titleCase;
 module.exports.parseFlags = parseFlags;
 module.exports.parseMention = parseMention;
+module.exports.checkCount = checkCount;
+module.exports.checkFlagCount = checkFlagCount;
 module.exports.isAuthorized = isAuthorized;
 module.exports.announce = announce;

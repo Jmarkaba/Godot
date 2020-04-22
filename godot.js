@@ -14,6 +14,7 @@ const startEventJob = require('./handlers/eventHandler').startEventJob;
 const botToken = process.env.TOKEN || require('./auth.json').token;
 const botUsername = 'Godot';
 const botStatus = 'The absurdity of Estragon and Vladimir';
+const botAvatar = 'D:/Files/Downloads/Wesley_Wyndam-Pryce.jpg';
 // For MongoDB
 // Connection through mongoose is established during bot init process
 const MONGDB_URI = process.env.MONGODB_URI || require('./auth.json').mongo;
@@ -26,9 +27,10 @@ const Event = require('./schemas/event');
 const bot = new Discord.Client();
 bot.on('ready', () => {
     console.log('Initializing...');
-    if(bot.user.username != botUsername) {
+    if(bot.user.username != botUsername && !process.env.TOKEN) {
         bot.user.setUsername(botUsername);
         bot.user.setActivity(botStatus, { type: 'WATCHING' });
+        bot.user.setAvatar(botAvatar);
     }
     bot.setMaxListeners(1000);
     // Reinitialize any existing jobs
@@ -36,7 +38,15 @@ bot.on('ready', () => {
     // when Heroku updates the bot
     Event.find({}, (err, docs) => {
         if(!err) {
-            docs.forEach(doc => schedule.scheduleJob(doc.id, doc.date, () => startEventJob(doc)));
+            const now = Date.now();
+            docs.forEach(doc => {
+                if(doc.date < now) {
+                    doc.remove();
+                } else {
+                    g = bot.guilds.find(g => g.id === doc.guild);
+                    schedule.scheduleJob(doc.id, doc.date, () => startEventJob(doc, g));
+                }
+            });
         } else {
             console.log(`Could not add all docs: ${err}`);
         }
@@ -45,7 +55,7 @@ bot.on('ready', () => {
 });
 
 bot.on('message', async message => {
-    if (message.content.substring(0, 3) === 'B->') {
+    if (message.content.substring(0, 3) === 'B->' && message.content.length > 3) {
         // preprocess args
         let args = message.content.substring(3).split(' ');
         args = args.filter(el => el);
@@ -61,7 +71,12 @@ bot.on('message', async message => {
                 handleGuildSettings(args, message);
                 break;
             case 'help':
-                message.channel.send(helpString());
+                const embed = new Discord.RichEmbed({
+                    title: 'Bot Categories:',
+                    color: 0xfd5e53,
+                    description: 'event\nsetting\nhelp\nType "B->(category) help" to see the list of options for that catergory.'
+                });
+                message.reply(embed);
                 break;
             default:
                 message.channel.send(`${command} is not a valid command. Type \`B->help\` to see a full list of commands.`);
@@ -79,16 +94,6 @@ bot.on('guildDelete', (guild) => {
     Event.deleteMany({guild: guild.id}, (err) => { if(err) console.log(`Failed to remove events for guild: ${guild.id}`)});
 });
 
+
 // initialize client bot
 bot.login(botToken);
-
-
-function helpString() {
-    return `\
-    \`\`\`These are the possible commands:\
-    \nevent [..]\
-    \nhelp\
-    \n\nType 'B->(command) help' to see the list of options for that command.\`\`\``;
-}
-
-module.exports = bot;

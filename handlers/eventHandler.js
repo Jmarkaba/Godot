@@ -1,6 +1,6 @@
 // Imports
 // Datetime configuration and scheduling
-const bot = require('../godot');
+const { RichEmbed } = require('discord.js');
 const $D = require('../utils/date');
 Date = $D.Date;
 const schedule = require('node-schedule');
@@ -10,25 +10,23 @@ const Guild = require('../schemas/guild');
 const Event = require('../schemas/event'); 
 const utils = require('../utils/utils');
 
-
 async function handleEvent(args, message) {
-
+    utils.checkCount(message, args, 1, 'No command specified for category "event".');
     let command = args.shift();
+    let _data;
     switch (command) {
         case 'pending':
-            message.channel.send('There are '+ Object.keys(schedule.scheduledJobs).length + ' jobs pending.').catch(O_o => {});
+            message.channel.send(`There are ${Object.keys(schedule.scheduledJobs).length} events pending.`).catch(O_o => {});
             break;
 
         // Adding a new event
         case 'add':
             // Permission check
-            if( !await utils.isAuthorized(message) ) {
-                console.log("Here");
-                break;
-            }
+            if( !await utils.isAuthorized(message) ) break;
 
             args.unshift('--name');
-            const _data = utils.parseFlags(args, {'notify': '0', 'desc': ''});
+            utils.checkFlagCount(message, args, 2, 'Too few arguments or invalid format for command "event add".');
+            _data = utils.parseFlags(args, {'notify': '0', 'desc': ''});
             let ev = {
                 'name': _data['name'],
                 'date': $D.parse(_data['date']),
@@ -38,7 +36,7 @@ async function handleEvent(args, message) {
                 'notify': []
             };
             Event.create(ev, (err, event) => {
-                console.log('===============EVENT:ADD===============');
+                console.log('==============================EVENT:ADD==============================');
                 if(!err) {
                     const announcement = event.notifyAll 
                     ? `@everyone ${event.nextString}`
@@ -54,7 +52,7 @@ async function handleEvent(args, message) {
                         }
                         if(msg) {
                             // schedule function for the date of the event
-                            schedule.scheduleJob(event.id, event.date, () => startEventJob(event.id));
+                            schedule.scheduleJob(event.id, event.date, () => startEventJob(event, message.guild));
                             console.log('Created event: ' + event);
                         }
                     });
@@ -65,32 +63,68 @@ async function handleEvent(args, message) {
             });
             break;
 
+        case 'cancel':
+            args.unshift('--name');
+            utils.checkFlagCount(message, args, 2, 'Too few arguments or invalid format for command "event cancel".');
+            _data = utils.parseFlags(args, {'count': -1});
+            _data['count'] = parseInt(_data['count'])
+            _performOnSortedEvents({name: _data['name']}, (docs) => {
+                let tot = docs.length;
+                if(_data['count'] < 0) {
+                    docs.forEach(doc => doc.remove())
+                } else {
+                    tot = min(tot, _data['count']);
+                    let i = 0;
+                    while(i < tot) {
+                        docs[i].remove();
+                    }
+                }
+                message.channel.send(`Removed ${tot} events named ${_data['name']} from the schedule.`)
+            });
+
+        case 'upcoming':
+            _performOnSortedEvents({}, (docs) => {
+                const embed = new RichEmbed({
+                    title: 'Upcoming Events:',
+                    color: 0xfd5e53
+                });
+                docs = docs.length < 10 ? docs : docs.splice(0, 10);
+                embed.setDescription(docs.length ?
+                    docs.map((d, idx) => `${idx+1}. ${d.shortString}`).join('\n')
+                    : 'There are no upcoming events scheduled.');
+                message.reply(embed);
+            });
+            break;
+
         // Invalid commands
         default:
             message.channel.send(`${command} is not recognized as a event command.`);
             break;
     }
 }
-function _performOnSortedEvents(message, func) {
-    Event.find({}).sort({start: 1}).exec((err,docs) => {
-        if (err) message.channel.send('There was an error while trying to perform the request.');
-        else func(message, docs);
+function _performOnSortedEvents(eventFilter, func) {
+    Event.find(eventFilter).sort({date: 1}).exec((err,docs) => {
+        if(err) {
+            console.log(`Perform on sorted events error: ${err}`);
+        } else {
+            func(docs);
+        }
     });
 }
-function startEventJob(job) {
-    Event.findById(job, (_, event) => {
-        Guild.findById(event.guild, (_, guild)=> {
-            g = bot.guilds.find('id', guild.id);
-            channel = g.channels.find('id', guild.channel) || g.channels.first();
-            if(event.notifyAll) {
-                channel.send(`@everyone ${event.warningString}`);
-            } else {
-                mentions = event.notify.map((id, _) => `<@${id}>`).join(' ');
-                channel.send(`${mentions} ${event.warningString}`);
-            }
-            event.remove((_) => {});
-        });
-    });
+function startEventJob(event, g) {
+    Guild.findById(g.id).then((guild) => {
+        console.log(event);
+        const channels = g.channels.filter(c => c.type == 'text');
+        channel = channels.find(c => c.id === guild.channel) || channels.first();
+        if(event.notifyAll) {
+            channel.send(`@everyone ${event.warningString}`);
+        } else {
+            console.log(event.notify);
+            mentions = event.notify ? event.notify.map((id, _) => `<@${id}>`).join(' ') : '';
+            channel.send(`${mentions} ${event.warningString}`);
+        }
+        event.remove();
+    }).catch(err => console.log(`Start job failed because ${err.stack}`));
 }
 
 // Exports

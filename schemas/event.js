@@ -15,6 +15,9 @@ class EventClass {
     get nextString() {
         return `**${this.name}** will start on ${this.date.toString('dddd, MMM dS')} at ${this.date.toTimeString()}.`;
     }
+    get shortString() {
+        return `${this.name} on ${this.date.toString('dddd, MMM dS')}`;
+    }
 }
 eventSchema.loadClass(EventClass);
 
