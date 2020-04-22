@@ -1,1 +1,1 @@
-worker: node thoth.js
+worker: node godot.js

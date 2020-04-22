@@ -1,4 +1,4 @@
-# Thoth
+# Godot
 A custom Discord bot used to help manage a software development team on Discord.
 
 Credit to the source of the date.js file: https://github.com/datejs/Datejs
