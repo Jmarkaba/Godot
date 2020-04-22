@@ -23,10 +23,9 @@ async function handleEvent(args, message) {
         case 'add':
             // Permission check
             if( !await utils.isAuthorized(message) ) break;
-
             args.unshift('--name');
-            const b = utils.checkFlagCount(message, args, 2, 'Too few arguments or invalid format for command "event add".');
-            if(!b) break;
+            if(utils.checkFlagCount(message, args, 2, 'Too few arguments or invalid format for command "event add".'))
+                break;
 
             _data = utils.parseFlags(args, {'notify': '0', 'desc': ''});
             let ev = {
@@ -67,8 +66,8 @@ async function handleEvent(args, message) {
 
         case 'cancel':
             args.unshift('--name');
-            const b = utils.checkFlagCount(message, args, 1, 'Too few arguments or invalid format for command "event cancel".');
-            if(!b) break;
+            if(utils.checkFlagCount(message, args, 1, 'Too few arguments or invalid format for command "event cancel".'))
+                break;
 
             _data = utils.parseFlags(args, {'count': -1});
             _data['count'] = parseInt(_data['count'])
@@ -99,6 +98,25 @@ async function handleEvent(args, message) {
                     : 'There are no upcoming events scheduled.');
                 message.reply(embed);
             });
+            break;
+
+        case 'help':
+            const embed = new RichEmbed({
+                title: 'Event Commands:',
+                color: 0xfd5e53,
+                description: '**event:add [name] --date [datetime] (--notify [0/1]) (--desc [description])**\
+                \n> Add a new event on [datetime]. Notify everyone (1) or only reactors (0).\
+                \n**event:cancel [name] (--count [integer > 0])**\
+                \n> Cancel the next count number of event(s) with name [name]. Defaults to all of them.\
+                \n**event:upcoming**\
+                \n> Display up to the next 10 upcoming events.\
+                \n**event:pending**\
+                \n> Display the number of pending events.\
+                \n**event:help**\
+                \n> Display this help menu.\
+                \n*Parentheses indicate optional flags/arguments.*'
+            });
+            message.reply(embed);
             break;
 
         // Invalid commands

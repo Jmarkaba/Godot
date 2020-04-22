@@ -13,7 +13,7 @@ class EventClass {
         return `Just an reminder that the *${this.name}* is starting now.`;
     }
     get nextString() {
-        return `**${this.name}** will start on ${this.date.toString('dddd, MMM dS')} at ${this.date.toTimeString()}.`;
+        return `**${this.name}** will start on ${this.date.toString('dddd, MMM dS')} at ${this.date.toTimeString()}. ${this.desc}`;
     }
     get shortString() {
         return `${this.name} on ${this.date.toString('dddd, MMM dS')}`;
