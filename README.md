@@ -1,9 +1,13 @@
-# Thoth
-A custom Discord bot used to help manage a software development team on Discord.
+# Godot
+A versatile and customizable discord bot to schedule events and more to come.
 
 Credit to the source of the date.js file: https://github.com/datejs/Datejs
 
-# Usage
+# Add to Discord Server
+This bot requires administrator priveleges on the server. If this is okay with you,
+then you can add the bot to your server using the following link:
+
+# Local Usage
 1. Create an 'auth.json' file in the project directory with the client token
     e.g., 
     ```
@@ -12,4 +16,4 @@ Credit to the source of the date.js file: https://github.com/datejs/Datejs
       "mongo": (MongoDB_url)
     }
     ```
-2. Adapt to your own use.
+2. Run with `node godot.js`

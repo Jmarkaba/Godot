@@ -1,7 +1,8 @@
 # Bot Credentials and Private Info
 auth.json
 
-# Notes and Ideas
+# Testing/Notes/Ideas
+tests/
 *.txt
 
 # Logs
