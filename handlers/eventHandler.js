@@ -25,7 +25,9 @@ async function handleEvent(args, message) {
             if( !await utils.isAuthorized(message) ) break;
 
             args.unshift('--name');
-            utils.checkFlagCount(message, args, 2, 'Too few arguments or invalid format for command "event add".');
+            const b = utils.checkFlagCount(message, args, 2, 'Too few arguments or invalid format for command "event add".');
+            if(!b) break;
+
             _data = utils.parseFlags(args, {'notify': '0', 'desc': ''});
             let ev = {
                 'name': _data['name'],
@@ -65,7 +67,9 @@ async function handleEvent(args, message) {
 
         case 'cancel':
             args.unshift('--name');
-            utils.checkFlagCount(message, args, 2, 'Too few arguments or invalid format for command "event cancel".');
+            const b = utils.checkFlagCount(message, args, 1, 'Too few arguments or invalid format for command "event cancel".');
+            if(!b) break;
+
             _data = utils.parseFlags(args, {'count': -1});
             _data['count'] = parseInt(_data['count'])
             _performOnSortedEvents({name: _data['name']}, (docs) => {
@@ -73,7 +77,7 @@ async function handleEvent(args, message) {
                 if(_data['count'] < 0) {
                     docs.forEach(doc => doc.remove())
                 } else {
-                    tot = min(tot, _data['count']);
+                    tot = Math.min(tot, _data['count']);
                     let i = 0;
                     while(i < tot) {
                         docs[i].remove();
@@ -81,6 +85,7 @@ async function handleEvent(args, message) {
                 }
                 message.channel.send(`Removed ${tot} events named ${_data['name']} from the schedule.`)
             });
+            break;
 
         case 'upcoming':
             _performOnSortedEvents({}, (docs) => {

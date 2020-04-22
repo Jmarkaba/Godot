@@ -7,14 +7,18 @@ async function handleGuildSettings(args, message) {
     let command = args.shift();
     switch (command) {
         case 'set-output-channel':
-            utils.checkCount(message, args, 1, 'No argument provided for command "setting set-output-channel".');
+            const b = utils.checkCount(message, args, 1, 'No argument provided for command "setting set-output-channel".');
+            if(!b) break;
+            
             const channel = utils.parseMention(args.shift());
             Guild.findByIdAndUpdate(message.guild.id, { channelID: channel }, 
                 { useFindAndModify: false }).catch(err => console.log(`Could not update guild (${message.guild.id}) channel because ${err}`));
             break;
 
         case 'set-permissions-role':
-            utils.checkCount(message, args, 1, 'No argument provided for command "setting set-permissions-role".');
+            const b = utils.checkCount(message, args, 1, 'No argument provided for command "setting set-permissions-role".');
+            if(!b) break;
+
             const role = utils.parseMention(args.shift());
             Guild.findByIdAndUpdate(message.guild.id, { permissionsRole: role }, 
                 { useFindAndModify: false }).catch(err => console.log(`Could not update guild (${message.guild.id}) channel because ${err}`));
