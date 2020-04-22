@@ -3,7 +3,7 @@
  * @author: Jah Markabawi
  */
 // Requirements for Discord bot
-const Discord = require('discord.js');
+const { Client, RichEmbed } = require('discord.js');
 const schedule = require('node-schedule');
 
 // Command Handlers
@@ -24,7 +24,7 @@ const Guild = require('./schemas/guild');
 const Event = require('./schemas/event');
 
 // Initialize Discord bot
-const bot = new Discord.Client();
+const bot = new Client();
 bot.on('ready', () => {
     console.log('Initializing...');
     if(bot.user.username != botUsername && !process.env.TOKEN) {
@@ -71,10 +71,16 @@ bot.on('message', async message => {
                 handleGuildSettings(args, message);
                 break;
             case 'help':
-                const embed = new Discord.RichEmbed({
-                    title: 'Bot Categories:',
+                const embed = new RichEmbed({
+                    title: 'Bot Commands:',
                     color: 0xfd5e53,
-                    description: 'event\nsetting\nhelp\nType "B->(category) help" to see the list of options for that catergory.'
+                    description: '**event [subcommand]**\
+                    \n> Manage new and upcoming events for the server.\
+                    \n**setting [subcommand]**\
+                    \n> Adjust server settings for the bot.\
+                    \n**help**\
+                    \n> Display this help menu.\
+                    \nType "B->[category] help" to see the list of options for that catergory.'
                 });
                 message.reply(embed);
                 break;
